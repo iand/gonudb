@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 These are changes that will probably be included in the next release.
 
 ### Added
+
+ * Support variable length keys
  
 ### Fixed
-
 
 ### Changed
  
@@ -21,7 +22,7 @@ These are changes that will probably be included in the next release.
 
 ### Fixed
 
- * Reduce scope of insert locking unblock reads when inserts are throttled 
+ * Reduce scope of insert locking to unblock reads when inserts are throttled 
  * Fix bucket scanner not detecting EOF
 
 ## [v0.1.0] - 2020-11-18

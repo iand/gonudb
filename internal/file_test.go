@@ -16,7 +16,7 @@ func TestCreateKeyFile(t *testing.T) {
 	const blockSize = 256
 
 	filename := tmpdir + "key"
-	err = CreateKeyFile(filename, 121212, 222222, 32, 333333, blockSize, 0.7)
+	err = CreateKeyFile(filename, 121212, 222222, 333333, blockSize, 0.7)
 	if err != nil {
 		t.Errorf("CreateKeyFile: unexpected error: %v", err)
 	}

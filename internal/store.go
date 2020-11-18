@@ -39,13 +39,9 @@ type Store struct {
 	tlogger logr.Logger // trace logger
 }
 
-func CreateStore(datPath, keyPath, logPath string, appnum, uid, salt uint64, keySize, blockSize int, loadFactor float64) error {
-	if keySize < 1 || keySize > MaxInt16 {
-		return ErrInvalidKeySize
-	}
-
+func CreateStore(datPath, keyPath, logPath string, appnum, uid, salt uint64, blockSize int, loadFactor float64) error {
 	// TODO make this a constant MaxBlockSize
-	if blockSize > MaxUint16 {
+	if blockSize > MaxBlockSize {
 		return ErrInvalidBlockSize
 	}
 
@@ -58,11 +54,11 @@ func CreateStore(datPath, keyPath, logPath string, appnum, uid, salt uint64, key
 		return ErrInvalidBlockSize
 	}
 
-	if err := CreateDataFile(datPath, appnum, uid, keySize); err != nil {
+	if err := CreateDataFile(datPath, appnum, uid); err != nil {
 		return fmt.Errorf("create data file: %w", err)
 	}
 
-	if err := CreateKeyFile(keyPath, uid, appnum, keySize, salt, blockSize, loadFactor); err != nil {
+	if err := CreateKeyFile(keyPath, uid, appnum, salt, blockSize, loadFactor); err != nil {
 		return fmt.Errorf("create key file: %w", err)
 	}
 
@@ -251,11 +247,13 @@ func (s *Store) Insert(key string, data []byte) error {
 	if err := s.Err(); err != nil {
 		return err
 	}
-	if len(key) != int(s.kf.Header.KeySize) {
-		return ErrKeyWrongSize
+	if len(key) == 0 {
+		return ErrKeyMissing
+	} else if len(key) > MaxKeySize {
+		return ErrKeyTooLarge
 	} else if len(data) == 0 {
 		return ErrDataMissing
-	} else if len(data) > math.MaxUint32 {
+	} else if len(data) > MaxDataSize {
 		return ErrDataTooLarge
 	}
 

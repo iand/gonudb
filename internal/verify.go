@@ -2,21 +2,31 @@ package internal
 
 import (
 	"fmt"
+
+	"github.com/go-logr/logr"
 )
 
 // VerifyStore verifies consistency of the data and key files.
-func VerifyStore(datPath, keyPath string) (*VerifyResult, error) {
+func VerifyStore(datPath, keyPath string, logger logr.Logger) (*VerifyResult, error) {
 	df, err := OpenDataFile(datPath)
 	if err != nil {
 		return nil, fmt.Errorf("open data file: %w", err)
 	}
 	defer df.Close()
+	if logger != nil {
+		df.elogger = logger
+	}
+	logger.Info("opened data file", "version", df.Header.Version, "uid", df.Header.UID, "appnum", df.Header.AppNum)
 
 	kf, err := OpenKeyFile(keyPath)
 	if err != nil {
 		return nil, fmt.Errorf("open key file: %w", err)
 	}
 	defer kf.Close()
+	if logger != nil {
+		kf.elogger = logger
+	}
+	logger.Info("opened key file", "version", kf.Header.Version, "uid", kf.Header.UID, "appnum", kf.Header.AppNum, "buckets", kf.Header.Buckets, "block_size", kf.Header.BlockSize, "load_factor", kf.Header.LoadFactor)
 
 	if err := df.Header.VerifyMatchingKey(&kf.Header); err != nil {
 		return nil, fmt.Errorf("key file and data file have incompatible metadata: %w", err)
@@ -41,18 +51,18 @@ func VerifyStore(datPath, keyPath string) (*VerifyResult, error) {
 	}
 
 	res := &VerifyResult{
-		DatPath:   datPath,
-		KeyPath:   keyPath,
-		Version:   df.Header.Version,
-		UID:       df.Header.UID,
-		AppNum:    df.Header.AppNum,
-		KeySize:   kf.Header.KeySize,
-		Salt:      kf.Header.Salt,
-		Pepper:    kf.Header.Pepper,
-		BlockSize: kf.Header.BlockSize,
-		Capacity:  kf.Header.Capacity,
-		Buckets:   kf.Header.Buckets,
-		Modulus:   kf.Header.Modulus,
+		DatPath:    datPath,
+		KeyPath:    keyPath,
+		Version:    df.Header.Version,
+		UID:        df.Header.UID,
+		AppNum:     df.Header.AppNum,
+		Salt:       kf.Header.Salt,
+		Pepper:     kf.Header.Pepper,
+		BlockSize:  kf.Header.BlockSize,
+		LoadFactor: float64(kf.Header.LoadFactor) / float64(MaxUint16),
+		Capacity:   kf.Header.Capacity,
+		Buckets:    kf.Header.Buckets,
+		Modulus:    kf.Header.Modulus,
 	}
 
 	res.DatFileSize, err = df.Size()
@@ -67,10 +77,9 @@ func VerifyStore(datPath, keyPath string) (*VerifyResult, error) {
 	// Verify records
 	rs := df.RecordScanner()
 	defer rs.Close()
-	dataSize := int64(0)
 	totalFetches := 0
 	for rs.Next() {
-		dataSize += rs.RecordSize()
+		res.RecordBytesTotal += rs.RecordSize()
 		if rs.IsData() {
 			res.ValueCountTotal++
 			res.ValueBytesTotal += rs.Size()
@@ -90,8 +99,8 @@ func VerifyStore(datPath, keyPath string) (*VerifyResult, error) {
 		return nil, fmt.Errorf("scanning data file: %w", rs.Err())
 	}
 
-	if res.DatFileSize != dataSize+DatFileHeaderSize {
-		return nil, fmt.Errorf("data file size mismatch: file size is %d, size of records is %d", res.DatFileSize, dataSize+DatFileHeaderSize)
+	if res.DatFileSize != res.RecordBytesTotal+DatFileHeaderSize {
+		return nil, fmt.Errorf("data file size mismatch: file size is %d, size of records is %d (diff: %d)", res.DatFileSize, res.RecordBytesTotal+DatFileHeaderSize, res.DatFileSize-(res.RecordBytesTotal+DatFileHeaderSize))
 	}
 
 	// Verify buckets
@@ -103,6 +112,7 @@ func VerifyStore(datPath, keyPath string) (*VerifyResult, error) {
 		if bs.IsSpill() {
 			res.SpillCountInUse++
 			res.SpillBytesInUse += SpillHeaderSize + int64(b.ActualSize())
+			res.RecordBytesInUse += SpillHeaderSize + int64(b.ActualSize())
 		}
 
 		for i := 0; i < b.Count(); i++ {
@@ -116,29 +126,30 @@ func VerifyStore(datPath, keyPath string) (*VerifyResult, error) {
 				return nil, fmt.Errorf("record type mismatch at offset %d, key file expects data record", e.Offset)
 			}
 
-			if ehdr.size != e.Size {
-				return nil, fmt.Errorf("record size mismatch at offset %d, data file record size %d, key file expects size %d", e.Offset, ehdr.size, e.Size)
+			if ehdr.DataSize != e.Size {
+				return nil, fmt.Errorf("record size mismatch at offset %d, data file record size %d, key file expects size %d", e.Offset, ehdr.DataSize, e.Size)
 			}
 
-			hash := kf.Hash(ehdr.key)
+			hash := kf.Hash(ehdr.Key)
 			if hash != e.Hash {
 				return nil, fmt.Errorf("record key hash mismatch at offset %d, data file record hash %d, key file expects hash %d", e.Offset, hash, e.Hash)
 			}
 
 			res.ValueCountInUse++
-			res.ValueBytesInUse += ehdr.size
+			res.ValueBytesInUse += ehdr.DataSize
+			res.RecordBytesInUse += ehdr.Size() + ehdr.DataSize
 		}
 
 	}
 	if bs.Err() != nil {
-		return nil, fmt.Errorf("scanning key file: %w", bs.Err())
+		return nil, fmt.Errorf("scanning key file (index: %d): %w", bs.Index(), bs.Err())
 	}
 
 	res.Waste = float64(res.SpillBytesTotal-res.SpillBytesInUse) / float64(res.DatFileSize)
 	res.ActualLoad = float64(res.KeyCount) / float64(res.Capacity*res.Buckets)
 
 	if res.ValueCountInUse > 0 {
-		res.Overhead = float64(res.KeyFileSize+res.DatFileSize) / float64(float64(res.ValueBytesTotal)+float64(res.KeyCount)*float64(res.KeySize+SizeUint48)-1)
+		res.Overhead = float64(res.KeyFileSize+res.DatFileSize) / float64(res.RecordBytesTotal)
 		res.AverageFetch = float64(totalFetches) / float64(res.ValueCountInUse)
 	}
 
@@ -168,7 +179,7 @@ func countFetches(key string, df *DataFile, kf *KeyFile) (int, error) {
 			}
 			fetches++
 
-			if string(ehdr.key) != key {
+			if string(ehdr.Key) != key {
 				continue
 			}
 
@@ -200,7 +211,6 @@ type VerifyResult struct {
 	Version    uint16  // The API version used to create the database
 	UID        uint64  // The unique identifier
 	AppNum     uint64  // The application-defined constant
-	KeySize    int16   // The size of each key, in bytes
 	Salt       uint64  // The salt used in the key file
 	Pepper     uint64  // The salt fingerprint
 	BlockSize  uint16  // The block size used in the key file
@@ -213,17 +223,19 @@ type VerifyResult struct {
 	BucketSize  int64 // The size of a bucket in bytes
 	Modulus     uint64
 
-	KeyCount        int64   // The number of keys found
-	ValueCountInUse int64   // The number of values found that are referenced by a key
-	ValueCountTotal int64   // The number of values found
-	ValueBytesInUse int64   // The total number of bytes occupied by values that are referenced by a key
-	ValueBytesTotal int64   // The total number of bytes occupied by values
-	SpillCountInUse int64   // The number of spill records in use
-	SpillCountTotal int64   // The total number of spill records
-	SpillBytesInUse int64   // The number of bytes occupied by spill records in use
-	SpillBytesTotal int64   // The number of bytes occupied by all spill records
-	AverageFetch    float64 // Average number of key file reads per fetch
-	Waste           float64 // The fraction of the data file that is wasted
-	Overhead        float64 // The data amplification ratio (size of data files compared to the size of the underlying data and keys)
-	ActualLoad      float64 // The measured bucket load fraction (number of keys as a fraction of the total capacity)
+	KeyCount         int64   // The number of keys found
+	ValueCountInUse  int64   // The number of values found that are referenced by a key
+	ValueCountTotal  int64   // The number of values found
+	ValueBytesInUse  int64   // The total number of bytes occupied by values that are referenced by a key
+	ValueBytesTotal  int64   // The total number of bytes occupied by values
+	RecordBytesInUse int64   // The total number of bytes occupied by records (header + value) that are referenced by a key
+	RecordBytesTotal int64   // The total number of bytes occupied by records (header + value)
+	SpillCountInUse  int64   // The number of spill records in use
+	SpillCountTotal  int64   // The total number of spill records
+	SpillBytesInUse  int64   // The number of bytes occupied by spill records in use
+	SpillBytesTotal  int64   // The number of bytes occupied by all spill records
+	AverageFetch     float64 // Average number of key file reads per fetch
+	Waste            float64 // The fraction of the data file that is wasted
+	Overhead         float64 // The data amplification ratio (size of data files compared to the size of the underlying data and keys)
+	ActualLoad       float64 // The measured bucket load fraction (number of keys as a fraction of the total capacity)
 }

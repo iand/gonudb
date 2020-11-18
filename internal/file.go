@@ -64,7 +64,7 @@ type DataFile struct {
 	elogger logr.Logger
 }
 
-func CreateDataFile(path string, appnum, uid uint64, keySize int) error {
+func CreateDataFile(path string, appnum, uid uint64) error {
 	f, err := openFile(path, os.O_APPEND|os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644, unix.FADV_RANDOM)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
@@ -74,7 +74,6 @@ func CreateDataFile(path string, appnum, uid uint64, keySize int) error {
 		Version: currentVersion,
 		UID:     uid,
 		AppNum:  appnum,
-		KeySize: int16(keySize),
 	}
 
 	if err := dh.EncodeTo(f); err != nil {
@@ -165,24 +164,21 @@ func (d *DataFile) Size() (int64, error) {
 // AppendRecord writes a record to the data file. It returns the position at which
 // the record was written.
 func (d *DataFile) AppendRecord(dr *DataRecord) (int64, error) {
-	if len(dr.key) != int(d.Header.KeySize) {
-		return 0, ErrKeyWrongSize
-	}
+	hdr := make([]byte, SizeUint48+SizeUint16)
+	EncodeUint48(hdr[0:SizeUint48], uint64(len(dr.data)))
+	EncodeUint16(hdr[SizeUint48:SizeUint48+SizeUint16], uint16(len(dr.key)))
 
-	var sizebuf [SizeUint48]byte
 	offset := d.offset
 
-	EncodeUint48(sizebuf[:], uint64(len(dr.data)))
-	n, err := d.file.Write(sizebuf[:])
+	n, err := d.file.Write(hdr[:])
 	d.offset += int64(n)
 	if err != nil {
 		return offset, err
 	}
-	if n != len(sizebuf) {
+	if n != len(hdr) {
 		return offset, io.ErrShortWrite
 	}
 
-	// TODO: write key size before key
 	nk, err := d.file.Write([]byte(dr.key))
 	d.offset += int64(nk)
 	if err != nil {
@@ -205,42 +201,46 @@ func (d *DataFile) AppendRecord(dr *DataRecord) (int64, error) {
 }
 
 func (d *DataFile) LoadRecordHeader(offset int64) (*DataRecordHeader, error) {
-	hdr := make([]byte, int64(SizeUint48+d.Header.KeySize))
+	hdr := make([]byte, SizeUint48+SizeUint16)
 
 	_, err := d.file.ReadAt(hdr, offset)
 	if err != nil {
 		return nil, fmt.Errorf("read data record header: %w", err)
 	}
 
-	size := DecodeUint48(hdr[:SizeUint48])
-	if size == 0 {
+	dataSize := DecodeUint48(hdr[:SizeUint48])
+	if dataSize == 0 {
+		// Data size 0 indicates a bucket spill follows
+		return nil, ErrInvalidDataRecord
+	}
+	keySize := DecodeUint16(hdr[SizeUint48 : SizeUint48+SizeUint16])
+	if keySize == 0 {
 		return nil, ErrInvalidDataRecord
 	}
 
+	key := make([]byte, keySize)
+	_, err = d.file.ReadAt(key, offset+SizeUint48+SizeUint16)
+	if err != nil {
+		return nil, fmt.Errorf("read data record key: %w", err)
+	}
+
 	return &DataRecordHeader{
-		key:  hdr[SizeUint48 : SizeUint48+d.Header.KeySize],
-		size: int64(size),
+		Key:      key,
+		DataSize: int64(dataSize),
+		KeySize:  keySize,
 	}, nil
 }
 
 func (d *DataFile) RecordDataReader(offset int64, key string) (io.Reader, error) {
-	hdr := make([]byte, int64(SizeUint48+d.Header.KeySize))
-
-	_, err := d.file.ReadAt(hdr, offset)
+	rh, err := d.LoadRecordHeader(offset)
 	if err != nil {
 		return nil, fmt.Errorf("read data record header: %w", err)
 	}
-
-	size := DecodeUint48(hdr[:SizeUint48])
-	if size == 0 {
-		return nil, ErrInvalidDataRecord
-	}
-
-	if !bytes.Equal([]byte(key), hdr[SizeUint48:SizeUint48+d.Header.KeySize]) {
+	if !bytes.Equal([]byte(key), rh.Key) {
 		return nil, ErrKeyMismatch
 	}
 
-	return io.NewSectionReader(d.file, offset+int64(len(hdr)), int64(size)), nil
+	return io.NewSectionReader(d.file, offset+rh.Size(), int64(rh.DataSize)), nil
 }
 
 func (d *DataFile) AppendBucketSpill(blob []byte) (int64, error) {
@@ -333,7 +333,6 @@ func (d *DataFile) RecordScanner() *RecordScanner {
 		lr:      io.LimitedReader{R: r, N: 0},
 		size:    -1,
 		isSpill: false,
-		keySize: d.Header.KeySize,
 	}
 }
 
@@ -347,7 +346,6 @@ type RecordScanner struct {
 	size    int64
 	key     []byte
 	isSpill bool
-	keySize int16
 	lr      io.LimitedReader
 }
 
@@ -367,7 +365,7 @@ func (s *RecordScanner) Next() bool {
 	}
 	s.offset += int64(n)
 
-	hdr := make([]byte, int64(SizeUint48+s.keySize))
+	hdr := make([]byte, int64(SizeUint48+SizeUint16))
 	n, s.err = io.ReadFull(s.r, hdr)
 	if s.err != nil {
 		return false
@@ -385,7 +383,14 @@ func (s *RecordScanner) Next() bool {
 		}
 	} else {
 		s.isSpill = false
-		s.key = hdr[SizeUint48 : SizeUint48+s.keySize]
+		keySize := int(DecodeUint16(hdr[SizeUint48 : SizeUint48+SizeUint16]))
+		key := make([]byte, keySize)
+		n, s.err = io.ReadFull(s.r, key)
+		s.offset += int64(n)
+		if s.err != nil {
+			return false
+		}
+		s.key = key
 	}
 
 	// Set the limited reader hard limit
@@ -420,7 +425,15 @@ func (s *RecordScanner) Size() int64 {
 
 // RecordSize returns the number of bytes occupied by the current record including its header
 func (s *RecordScanner) RecordSize() int64 {
-	return s.size + int64(SizeUint48+s.keySize)
+	if s.isSpill {
+		return SizeUint48 + // holds marker
+			SizeUint16 + // holds spill size
+			s.size // spill data
+	}
+	return SizeUint48 + // holds data size
+		SizeUint16 + // holds key size
+		s.size + // data
+		int64(len(s.key)) // key
 }
 
 // Size returns the key of the current record
@@ -459,7 +472,7 @@ type KeyFile struct {
 	bucketLocks []*sync.Mutex
 }
 
-func CreateKeyFile(path string, uid uint64, appnum uint64, keySize int, salt uint64, blockSize int, loadFactor float64) error {
+func CreateKeyFile(path string, uid uint64, appnum uint64, salt uint64, blockSize int, loadFactor float64) error {
 	kf, err := openFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644, unix.FADV_RANDOM)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
@@ -473,7 +486,6 @@ func CreateKeyFile(path string, uid uint64, appnum uint64, keySize int, salt uin
 		Version:    currentVersion,
 		UID:        uid,
 		AppNum:     appnum,
-		KeySize:    int16(keySize),
 		Salt:       salt,
 		Pepper:     pepper(salt),
 		BlockSize:  uint16(blockSize),
@@ -647,6 +659,7 @@ func (k *KeyFile) BucketScanner(df *DataFile) *BucketScanner {
 		blockSize: int64(k.Header.BlockSize),
 		index:     -1,
 		df:        df,
+		elogger:   k.elogger,
 	}
 }
 
@@ -662,6 +675,7 @@ type BucketScanner struct {
 	err       error
 	spill     int64 // non-zero if next read is a spill to the data store
 	isSpill   bool  // true if the current bucket was read from a spill
+	elogger   logr.Logger
 }
 
 // Next reads the next bucket in sequence, including spills to the data store. It returns false
@@ -674,15 +688,21 @@ func (b *BucketScanner) Next() bool {
 	if b.spill != 0 {
 		b.err = b.bucket.LoadFrom(b.spill, b.df)
 		b.isSpill = true
+		if b.elogger.Enabled() && b.err != nil {
+			b.elogger.Error(b.err, "reading spill", "index", b.index, "spill", b.spill)
+		}
 	} else {
 		lr := io.LimitedReader{R: b.r, N: b.blockSize}
 		b.err = b.bucket.loadFullFrom(&lr)
 		b.isSpill = false
 		b.index++
+		if b.elogger.Enabled() && b.err != nil && b.err != io.EOF {
+			b.elogger.Error(b.err, "reading bucket", "index", b.index)
+		}
 	}
 
 	if b.err != nil {
-		b.spill = b.bucket.Spill()
+		b.spill = b.bucket.spill
 	}
 
 	return b.err == nil
@@ -779,7 +799,6 @@ func (l *LogFile) Prepare(df *DataFile, kf *KeyFile) error {
 		Version:   currentVersion,
 		UID:       kf.Header.UID,
 		AppNum:    kf.Header.AppNum,
-		KeySize:   kf.Header.KeySize,
 		Salt:      kf.Header.Salt,
 		Pepper:    pepper(kf.Header.Salt),
 		BlockSize: kf.Header.BlockSize,

@@ -3,8 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/iand/gonudb/internal"
 	"github.com/urfave/cli/v2"
+
+	"github.com/iand/gonudb/internal"
 )
 
 var verifyCommand = &cli.Command{
@@ -36,7 +37,7 @@ func verify(cc *cli.Context) error {
 	datPath := cc.Args().Get(0)
 	keyPath := cc.Args().Get(1)
 
-	info, err := internal.VerifyStore(datPath, keyPath)
+	info, err := internal.VerifyStore(datPath, keyPath, logger)
 	if err != nil {
 		return cli.Exit(err.Error(), 1)
 	}
@@ -58,6 +59,8 @@ func verify(cc *cli.Context) error {
 			{Key: "ValueCountTotal", Value: info.ValueCountTotal},
 			{Key: "ValueBytesInUse", Value: Bytes(info.ValueBytesInUse)},
 			{Key: "ValueBytesTotal", Value: Bytes(info.ValueBytesTotal)},
+			{Key: "RecordBytesInUse", Value: Bytes(info.RecordBytesInUse)},
+			{Key: "RecordBytesTotal", Value: Bytes(info.RecordBytesTotal)},
 			{Key: "SpillCountInUse", Value: info.SpillCountInUse},
 			{Key: "SpillCountTotal", Value: info.SpillCountTotal},
 			{Key: "SpillBytesInUse", Value: Bytes(info.SpillBytesInUse)},
@@ -73,7 +76,6 @@ func verify(cc *cli.Context) error {
 		label: "Key file",
 		rows: []kv{
 			{Key: "KeyFileSize", Value: Bytes(info.KeyFileSize)},
-			{Key: "KeySize", Value: Bytes(info.KeySize)},
 			{Key: "Salt", Value: info.Salt},
 			{Key: "Pepper", Value: info.Pepper},
 			{Key: "BlockSize", Value: Bytes(info.BlockSize)},
