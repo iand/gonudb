@@ -359,10 +359,7 @@ func (b *Bucket) storeFullTo(w io.Writer) (int64, error) {
 
 // LoadFullFrom reads the entire blob from r
 func (b *Bucket) loadFullFrom(r io.Reader) error {
-	n, err := io.ReadFull(r, b.blob)
-	if err == io.EOF || n != len(b.blob) {
-		err = io.ErrUnexpectedEOF
-	}
+	_, err := io.ReadFull(r, b.blob)
 	if err != nil {
 		return err
 	}
