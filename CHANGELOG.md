@@ -12,12 +12,17 @@ These are changes that will probably be included in the next release.
  
 ### Fixed
 
- * Reduce scope of insert locking unblock reads when inserts are throttled 
- * Fix bucket scanner not detecting EOF
 
 ### Changed
  
 ### Removed
+
+## [v0.1.1] - 2020-11-18
+
+### Fixed
+
+ * Reduce scope of insert locking unblock reads when inserts are throttled 
+ * Fix bucket scanner not detecting EOF
 
 ## [v0.1.0] - 2020-11-18
 
