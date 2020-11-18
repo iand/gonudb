@@ -86,7 +86,7 @@ the block size of the underlying physical media so loading a bucket may only tak
 Version 0.1.0 is an alpha quality functional port of the original NuDB suitable for testing with 
 expendable loads. Correctness and safety has been prioritised over performance. Locks are broad in scope
 and treat reads and writes with equal priority. Future work will tune the locking bahaviour to 
-better meet the goal of reads not blocking writes.
+better meet the goal of writes not blocking reads.
 
 High priority tasks include:
 
