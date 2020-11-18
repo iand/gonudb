@@ -260,26 +260,12 @@ func (s *Store) Insert(key string, data []byte) error {
 	}
 
 	s.imu.Lock()
-	defer s.imu.Unlock()
+	err := s.insert(key, data)
+	s.imu.Unlock()
 
-	h := s.kf.HashString(key)
-	if s.p0.Has(key) {
-		return ErrKeyExists
-	}
-
-	found, err := s.bc.Exists(h, key, s.df)
 	if err != nil {
-		return fmt.Errorf("exists in bucket: %w", err)
+		return err
 	}
-	if found {
-		return ErrKeyExists
-	}
-
-	// Perform insert
-	if s.tlogger.Enabled() {
-		s.tlogger.Info("inserting into pool p1", "key", key, "size", len(data))
-	}
-	s.p0.Insert(h, key, data)
 
 	// Calculate throttling
 	now := time.Now()
@@ -301,6 +287,30 @@ func (s *Store) Insert(key string, data []byte) error {
 	if sleep {
 		time.Sleep(25 * time.Millisecond)
 	}
+
+	return nil
+}
+
+// insert expects caller to hold s.imu lock
+func (s *Store) insert(key string, data []byte) error {
+	h := s.kf.HashString(key)
+	if s.p0.Has(key) {
+		return ErrKeyExists
+	}
+
+	found, err := s.bc.Exists(h, key, s.df)
+	if err != nil {
+		return fmt.Errorf("exists in bucket: %w", err)
+	}
+	if found {
+		return ErrKeyExists
+	}
+
+	// Perform insert
+	if s.tlogger.Enabled() {
+		s.tlogger.Info("inserting into pool p1", "key", key, "size", len(data))
+	}
+	s.p0.Insert(h, key, data)
 
 	return nil
 }

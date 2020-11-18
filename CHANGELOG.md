@@ -12,6 +12,8 @@ These are changes that will probably be included in the next release.
  
 ### Fixed
 
+ * Reduce scope of insert locking unblock reads when inserts are throttled 
+
 ### Changed
  
 ### Removed
