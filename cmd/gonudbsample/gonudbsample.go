@@ -79,7 +79,6 @@ func run(cc *cli.Context) error {
 		logPath,
 		1,
 		gonudb.NewSalt(),
-		8,
 		4096,
 		0.5,
 	)
@@ -102,7 +101,7 @@ func run(cc *cli.Context) error {
 
 	keys := make([]string, 500)
 	for i := range keys {
-		keys[i] = fmt.Sprintf("key%05d", i)
+		keys[i] = fmt.Sprintf("key%09d", i)
 	}
 
 	fmt.Printf("Inserting %d samples\n", len(keys))

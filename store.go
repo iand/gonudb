@@ -10,8 +10,8 @@ import (
 	"github.com/iand/gonudb/internal"
 )
 
-func CreateStore(datPath, keyPath, logPath string, appnum, salt uint64, keySize, blockSize int, loadFactor float64) error {
-	return internal.CreateStore(datPath, keyPath, logPath, appnum, internal.NewUID(), salt, keySize, blockSize, loadFactor)
+func CreateStore(datPath, keyPath, logPath string, appnum, salt uint64, blockSize int, loadFactor float64) error {
+	return internal.CreateStore(datPath, keyPath, logPath, appnum, internal.NewUID(), salt, blockSize, loadFactor)
 }
 
 func OpenStore(datPath, keyPath, logPath string, options *StoreOptions) (*Store, error) {
@@ -308,9 +308,11 @@ var (
 	ErrInvalidSpill       = internal.ErrInvalidSpill
 	ErrKeyExists          = internal.ErrKeyExists
 	ErrKeyMismatch        = internal.ErrKeyMismatch
+	ErrKeyMissing         = internal.ErrKeyMissing
 	ErrKeyNotFound        = internal.ErrKeyNotFound
 	ErrKeySizeMismatch    = internal.ErrKeySizeMismatch
-	ErrKeyWrongSize       = internal.ErrKeyWrongSize
+	ErrKeyTooLarge        = internal.ErrKeyTooLarge
+	ErrKeyWrongSize       = internal.ErrKeyWrongSize // deprecated: use ErrKeyMissing and ErrKeyTooLarge instead
 	ErrNotDataFile        = internal.ErrNotDataFile
 	ErrNotKeyFile         = internal.ErrNotKeyFile
 	ErrNotLogFile         = internal.ErrNotLogFile

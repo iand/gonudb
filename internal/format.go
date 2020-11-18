@@ -22,21 +22,21 @@ value size          up to 32 bits (or 32-bit builds can't read it)
 
 */
 
-const currentVersion = 1
+const currentVersion = 2
 
 const (
 	DatFileHeaderSize = SizeUint64 + // Type
 		SizeUint16 + // Version
 		SizeUint64 + // UID
 		SizeUint64 + // Appnum
-		SizeUint16 + // KeySize
+		SizeUint16 + // REMOVED in version 2, was KeySize
 		64 // (Reserved)
 
 	KeyFileHeaderSize = 8 + // Type
 		SizeUint16 + // Version
 		SizeUint64 + // UID
 		SizeUint64 + // Appnum
-		SizeUint16 + // KeySize
+		SizeUint16 + // REMOVED in version 2, was KeySize
 		SizeUint64 + // Salt
 		SizeUint64 + // Pepper
 		SizeUint16 + // BlockSize
@@ -47,7 +47,7 @@ const (
 		SizeUint16 + // Version
 		SizeUint64 + // UID
 		SizeUint64 + // Appnum
-		SizeUint16 + // KeySize
+		SizeUint16 + // REMOVED in version 2, was KeySize
 		SizeUint64 + // Salt
 		SizeUint64 + // Pepper
 		SizeUint16 + // BlockSize
@@ -69,7 +69,6 @@ type DatFileHeader struct {
 	Version uint16
 	UID     uint64
 	AppNum  uint64
-	KeySize int16
 }
 
 func (*DatFileHeader) Size() int {
@@ -87,7 +86,7 @@ func (d *DatFileHeader) DecodeFrom(r io.Reader) error {
 	d.Version = DecodeUint16(data[8:10])
 	d.UID = DecodeUint64(data[10:18])
 	d.AppNum = DecodeUint64(data[18:26])
-	d.KeySize = int16(DecodeUint16(data[26:28]))
+	// data[26:28] is unused, was key size
 
 	return nil
 }
@@ -100,7 +99,7 @@ func (d *DatFileHeader) EncodeTo(w io.Writer) error {
 	EncodeUint16(data[8:10], d.Version)
 	EncodeUint64(data[10:18], d.UID)
 	EncodeUint64(data[18:26], d.AppNum)
-	EncodeUint16(data[26:28], uint16(d.KeySize))
+	// data[26:28] is unused, was key size
 
 	n, err := w.Write(data[:])
 	if err != nil {
@@ -123,10 +122,6 @@ func (d *DatFileHeader) Verify() error {
 		return ErrDifferentVersion
 	}
 
-	if d.KeySize < 1 {
-		return ErrInvalidKeySize
-	}
-
 	return nil
 }
 
@@ -138,9 +133,6 @@ func (d *DatFileHeader) VerifyMatchingKey(k *KeyFileHeader) error {
 	if k.AppNum != d.AppNum {
 		return ErrAppNumMismatch
 	}
-	if k.KeySize != d.KeySize {
-		return ErrKeySizeMismatch
-	}
 
 	return nil
 }
@@ -150,7 +142,6 @@ type KeyFileHeader struct {
 	Version uint16
 	UID     uint64
 	AppNum  uint64
-	KeySize int16
 
 	Salt       uint64
 	Pepper     uint64
@@ -177,7 +168,7 @@ func (k *KeyFileHeader) DecodeFrom(r io.Reader, fileSize int64) error {
 	k.Version = DecodeUint16(data[8:10])
 	k.UID = DecodeUint64(data[10:18])
 	k.AppNum = DecodeUint64(data[18:26])
-	k.KeySize = int16(DecodeUint16(data[26:28]))
+	// data[26:28] is unused, was key size
 	k.Salt = DecodeUint64(data[28:36])
 	k.Pepper = DecodeUint64(data[36:44])
 	k.BlockSize = DecodeUint16(data[44:46])
@@ -207,7 +198,7 @@ func (k *KeyFileHeader) EncodeTo(w io.Writer) error {
 	EncodeUint16(data[8:10], k.Version)
 	EncodeUint64(data[10:18], k.UID)
 	EncodeUint64(data[18:26], k.AppNum)
-	EncodeUint16(data[26:28], uint16(k.KeySize))
+	// data[26:28] is unused, was key size
 	EncodeUint64(data[28:36], k.Salt)
 	EncodeUint64(data[36:44], k.Pepper)
 	EncodeUint16(data[44:46], k.BlockSize)
@@ -234,10 +225,6 @@ func (k *KeyFileHeader) Verify() error {
 		return ErrDifferentVersion
 	}
 
-	if k.KeySize < 1 {
-		return ErrInvalidKeySize
-	}
-
 	if k.Pepper != pepper(k.Salt) {
 		return ErrHashMismatch
 	}
@@ -260,7 +247,6 @@ type LogFileHeader struct {
 	Version     uint16
 	UID         uint64
 	AppNum      uint64
-	KeySize     int16
 	Salt        uint64
 	Pepper      uint64
 	BlockSize   uint16
@@ -282,7 +268,7 @@ func (l *LogFileHeader) DecodeFrom(r io.Reader) error {
 	l.Version = DecodeUint16(data[8:10])
 	l.UID = DecodeUint64(data[10:18])
 	l.AppNum = DecodeUint64(data[18:26])
-	l.KeySize = int16(DecodeUint16(data[26:28]))
+	// data[26:28] was KeySize
 	l.Salt = DecodeUint64(data[28:36])
 	l.Pepper = DecodeUint64(data[36:44])
 	l.BlockSize = DecodeUint16(data[44:46])
@@ -299,7 +285,7 @@ func (l *LogFileHeader) EncodeTo(w io.Writer) error {
 	EncodeUint16(data[8:10], l.Version)
 	EncodeUint64(data[10:18], l.UID)
 	EncodeUint64(data[18:26], l.AppNum)
-	EncodeUint16(data[26:28], uint16(l.KeySize))
+	// data[26:28] was KeySize
 	EncodeUint64(data[28:36], l.Salt)
 	EncodeUint64(data[36:44], l.Pepper)
 	EncodeUint16(data[44:46], l.BlockSize)
@@ -325,19 +311,30 @@ type DataRecord struct {
 	size   int64
 }
 
+// DataRecordHeader is prepended to each record written to the data file.
+// Layout is:
+//   6 bytes  DataSize
+//   2 bytes  KeySize
+//   n bytes  Key
 type DataRecordHeader struct {
-	size int64
-	key  []byte
+	DataSize int64
+	KeySize  uint16
+	Key      []byte
 }
 
 // IsData reports whether the data record contains data
 func (d *DataRecordHeader) IsData() bool {
-	return d.size != 0
+	return d.DataSize != 0
 }
 
 // IsSpill reports whether the data record is a bucket spill
 func (d *DataRecordHeader) IsSpill() bool {
-	return d.size == 0
+	return d.DataSize == 0
+}
+
+// Size returns the size of the header in bytes
+func (d *DataRecordHeader) Size() int64 {
+	return SizeUint48 + SizeUint16 + int64(len(d.Key))
 }
 
 type BucketRecord struct {

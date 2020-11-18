@@ -295,7 +295,7 @@ func TestBucketMaybeSpill(t *testing.T) {
 		}
 		tmpfile := filepath.Join(tmpdir, "empty")
 
-		if err := CreateDataFile(tmpfile, 5, 6, 8); err != nil {
+		if err := CreateDataFile(tmpfile, 5, 6); err != nil {
 			t.Fatalf("unexpected error creating data file: %v", err)
 		}
 
@@ -328,7 +328,7 @@ func TestBucketMaybeSpill(t *testing.T) {
 
 		tmpfile := filepath.Join(tmpdir, "half")
 
-		if err := CreateDataFile(tmpfile, 5, 6, 8); err != nil {
+		if err := CreateDataFile(tmpfile, 5, 6); err != nil {
 			t.Fatalf("unexpected error creating data file: %v", err)
 		}
 
@@ -362,7 +362,7 @@ func TestBucketMaybeSpill(t *testing.T) {
 
 		tmpfile := filepath.Join(tmpdir, "full")
 
-		if err := CreateDataFile(tmpfile, 5, 6, 8); err != nil {
+		if err := CreateDataFile(tmpfile, 5, 6); err != nil {
 			t.Fatalf("unexpected error creating data file: %v", err)
 		}
 
@@ -413,7 +413,7 @@ func TestBucketMaybeSpill(t *testing.T) {
 
 		tmpfile := filepath.Join(tmpdir, "read")
 
-		if err := CreateDataFile(tmpfile, 5, 6, 8); err != nil {
+		if err := CreateDataFile(tmpfile, 5, 6); err != nil {
 			t.Fatalf("unexpected error creating data file: %v", err)
 		}
 

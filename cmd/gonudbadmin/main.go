@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/go-logr/logr"
 	"github.com/iand/logfmtr"
 	"github.com/urfave/cli/v2"
 
@@ -38,11 +39,16 @@ var logLevelFlag = &cli.IntFlag{
 	Value:   0,
 }
 
+var logger = logr.Discard()
+
 func initLogging(cc *cli.Context) error {
-	logfmtr.SetVerbosity(cc.Int("log-level"))
-	loggerOpts := logfmtr.DefaultOptions()
-	loggerOpts.Humanize = true
-	loggerOpts.Colorize = true
-	logfmtr.UseOptions(loggerOpts)
+	if cc.IsSet("log-level") {
+		logfmtr.SetVerbosity(cc.Int("log-level"))
+		loggerOpts := logfmtr.DefaultOptions()
+		loggerOpts.Humanize = true
+		loggerOpts.Colorize = true
+		logfmtr.UseOptions(loggerOpts)
+		logger = logfmtr.NewNamed("gonudb")
+	}
 	return nil
 }

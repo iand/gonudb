@@ -70,7 +70,6 @@ func infoFile(path string) []kv {
 			{Key: "Version", Value: dh.Version},
 			{Key: "UID", Value: dh.UID},
 			{Key: "AppNum", Value: dh.AppNum},
-			{Key: "KeySize", Value: Bytes(dh.KeySize)},
 			{Key: "File size", Value: Bytes(fStat.Size())},
 		}
 	case string(internal.KeyFileHeaderType):
@@ -84,7 +83,6 @@ func infoFile(path string) []kv {
 			{Key: "Version", Value: kh.Version},
 			{Key: "UID", Value: kh.UID},
 			{Key: "AppNum", Value: kh.AppNum},
-			{Key: "KeySize", Value: Bytes(kh.KeySize)},
 			{Key: "Salt", Value: kh.Salt},
 			{Key: "Pepper", Value: kh.Pepper},
 			{Key: "BlockSize", Value: Bytes(kh.BlockSize)},
@@ -104,7 +102,6 @@ func infoFile(path string) []kv {
 			{Key: "Version", Value: lh.Version},
 			{Key: "UID", Value: lh.UID},
 			{Key: "AppNum", Value: lh.AppNum},
-			{Key: "KeySize", Value: Bytes(lh.KeySize)},
 			{Key: "Salt", Value: lh.Salt},
 			{Key: "Pepper", Value: lh.Pepper},
 			{Key: "BlockSize", Value: Bytes(lh.BlockSize)},

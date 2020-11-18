@@ -52,10 +52,10 @@ Gonudb shares the design ideals that motivated NuDB (but see Status below):
 
 Keys and values are stored sequentially in an append only data file. The data file begins with a
 header that contains characteristic information about the file such as the version of the encoding
-scheme, a datastore identifier, an application identifier and the size of the keys. Data records
-follow immediately on from the header. Each record comprises the size of the value, followed by
-the key, followed by the value data. The data file is considered to be immutable and there are no
-delete or mutate operations.
+scheme, a datastore identifier and an application identifier. Data records follow immediately on
+from the header. Each record comprises the size of the value, followed by the size of the key,
+followed by the key, followed by the value data. The data file is considered to be immutable and
+there are no delete or mutate operations.
 
 Inserts are buffered in memory and periodically committed to disk. Clients are throttled based on
 the rate at which data is flushed to disk. Values are immediately discoverable via their key and
@@ -96,7 +96,6 @@ High priority tasks include:
 
 Additional features under consideration:
 
- * Allow variable size keys.
  * Allow alternate hashing functions to be specified.
 
 ## Author
