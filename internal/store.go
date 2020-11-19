@@ -143,6 +143,7 @@ func OpenStore(datPath, keyPath, logPath string, syncInterval time.Duration, elo
 		}
 		s.bc.buckets[idx] = b
 	}
+	s.bc.computeStats(df)
 
 	// Flush writes automatically
 	go func() {
@@ -237,6 +238,16 @@ func (s *Store) setErr(err error) {
 func (s *Store) DataFile() *DataFile { return s.df }
 func (s *Store) KeyFile() *KeyFile   { return s.kf }
 func (s *Store) LogFile() *LogFile   { return s.lf }
+
+func (s *Store) RecordCount() int {
+	return s.bc.EntryCount()
+}
+
+func (s *Store) Rate() float64 {
+	s.rmu.Lock()
+	defer s.rmu.Unlock()
+	return s.rate
+}
 
 func (s *Store) Insert(key string, data []byte) error {
 	if s.tlogger.Enabled() {

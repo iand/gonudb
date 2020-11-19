@@ -11,6 +11,7 @@ These are changes that will probably be included in the next release.
 ### Added
 
  * Support variable length keys
+ * Compute number of records when store is opened
  
 ### Fixed
 

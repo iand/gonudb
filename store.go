@@ -119,6 +119,16 @@ func (s *Store) BlockSize() uint16 {
 	return s.store.KeyFile().Header.BlockSize
 }
 
+// RecordCount returns the number of data records in the store.
+func (s *Store) RecordCount() int {
+	return s.store.RecordCount()
+}
+
+// Rate returns the data write rate in bytes per second.
+func (s *Store) Rate() float64 {
+	return s.store.Rate()
+}
+
 // RecordScanner implements a sequential scan through a store's data file. Successive calls to the Next method will step through
 // the records in the file.
 type RecordScanner struct {
