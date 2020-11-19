@@ -120,11 +120,11 @@ func run(cc *cli.Context) error {
 	fmt.Println("Finding random keys")
 	for i := 0; i < len(keys)/25; i++ {
 		key := keys[rand.Intn(len(keys))]
-		if err := s.Fetch(key, func(data []byte) {
-			fmt.Printf("Found %s => %s\n", key, string(data))
-		}); err != nil {
+		data, err := s.Fetch(key)
+		if err != nil {
 			return cli.Exit("Failed to fetch "+key+": "+err.Error(), 1)
 		}
+		fmt.Printf("Found %s => %s\n", key, string(data))
 	}
 
 	if cc.Int("concurrent") == 0 {
@@ -171,7 +171,7 @@ func run(cc *cli.Context) error {
 				}
 				for i := 0; i < 500; i++ {
 					key := fmt.Sprintf("%08d", rand.Intn(10000000))
-					err := s.Fetch(key, func(data []byte) {})
+					_, err := s.Fetch(key)
 					if err != nil && !errors.Is(err, gonudb.ErrKeyNotFound) {
 						fmt.Printf("Failed to fetch: %v\n", err)
 						return
