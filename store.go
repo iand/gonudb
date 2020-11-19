@@ -60,28 +60,23 @@ func (s *Store) Flush() error {
 	return s.store.Err()
 }
 
-// Fetch fetches the value associated with key from the store and passed it to fn if found.
-func (s *Store) Fetch(key string, fn func([]byte)) error {
-	var rerr error
-	err := s.store.FetchReader(key, func(r io.Reader) {
-		d, err := ioutil.ReadAll(r)
-		if err != nil {
-			rerr = err
-			return
-		}
-		fn(d)
-	})
+// Fetch fetches the value associated with key from the store.
+func (s *Store) Fetch(key string) ([]byte, error) {
+	r, err := s.store.FetchReader(key)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if rerr != nil {
-		return rerr
+
+	d, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return d, nil
 }
 
-func (s *Store) FetchReader(key string, fn func(io.Reader)) error {
-	return s.store.FetchReader(key, fn)
+// Fetch fetches a reader that may be used to read the value associated with a key.
+func (s *Store) FetchReader(key string) (io.Reader, error) {
+	return s.store.FetchReader(key)
 }
 
 // Err returns an error if the store is in an error state, nil otherwise

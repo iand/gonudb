@@ -409,12 +409,12 @@ func (s *Store) commit() (int64, error) {
 	return work, nil
 }
 
-func (s *Store) FetchReader(key string, fn func(io.Reader)) error {
+func (s *Store) FetchReader(key string) (io.Reader, error) {
 	if s.tlogger.Enabled() {
 		s.tlogger.Info("Store.FetchReader", "key", key)
 	}
 	if err := s.Err(); err != nil {
-		return err
+		return nil, err
 	}
 
 	h := s.kf.HashString(key)
@@ -427,14 +427,12 @@ func (s *Store) FetchReader(key string, fn func(io.Reader)) error {
 	defer s.imu.Unlock()
 
 	if data, exists := s.p0.Find(key); exists {
-		fn(bytes.NewReader(data))
-		return nil
+		return bytes.NewReader(data), nil
 	}
 
 	r, err := s.bc.Fetch(h, key, s.df)
 	if err != nil {
-		return fmt.Errorf("read bucket: %w", err)
+		return nil, fmt.Errorf("read bucket: %w", err)
 	}
-	fn(r)
-	return nil
+	return r, nil
 }

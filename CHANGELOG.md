@@ -15,6 +15,8 @@ These are changes that will probably be included in the next release.
 ### Fixed
 
 ### Changed
+
+ * Simplify method signatures of Fetch and FetchReader (breaking change)
  
 ### Removed
 
