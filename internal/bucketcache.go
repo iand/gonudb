@@ -236,6 +236,31 @@ func (c *BucketCache) Fetch(hash uint64, key string, df *DataFile) (io.Reader, e
 	return nil, ErrKeyNotFound
 }
 
+// computeStats counts the number of entries in buckets and spills
+func (c *BucketCache) computeStats(df *DataFile) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	blockBuf := make([]byte, c.bucketSize)
+	for idx := range c.buckets {
+		b := c.buckets[idx]
+		for {
+			c.count += b.count
+			if b.spill == 0 {
+				break
+			}
+			spill := b.spill
+
+			b = NewBucket(c.bucketSize, blockBuf)
+			if err := b.LoadFrom(spill, df); err != nil {
+				return fmt.Errorf("read spill: %w", err)
+			}
+
+		}
+	}
+	return nil
+}
+
 // EntryCount returns the number of entries in the cache
 func (c *BucketCache) EntryCount() int {
 	c.mu.Lock()
