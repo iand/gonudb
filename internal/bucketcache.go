@@ -370,24 +370,26 @@ func (c *BucketCache) Has(hash uint64, sp Spiller) (bool, error) {
 	return false, nil
 }
 
-func (c *BucketCache) WriteDirty(lf *LogFile, kf *KeyFile) (int64, error) {
+func (c *BucketCache) WriteDirty(lf *LogFile, kf *KeyFile, writeRecovery bool, syncAfterWrite bool) (int64, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	work := int64(0)
-	for idx := range c.dirty {
-		if !c.dirty[idx] {
-			continue
+	if writeRecovery {
+		for idx := range c.dirty {
+			if !c.dirty[idx] {
+				continue
+			}
+			written, err := lf.AppendBucket(idx, c.buckets[idx])
+			work += written
+			if err != nil {
+				return work, fmt.Errorf("append bucket to log %d: %w", idx, err)
+			}
 		}
-		written, err := lf.AppendBucket(idx, c.buckets[idx])
-		work += written
-		if err != nil {
-			return work, fmt.Errorf("append bucket to log %d: %w", idx, err)
-		}
-	}
 
-	if err := lf.Sync(); err != nil {
-		return work, fmt.Errorf("sync log file: %w", err)
+		if err := lf.Sync(); err != nil {
+			return work, fmt.Errorf("sync log file: %w", err)
+		}
 	}
 
 	for idx := range c.dirty {
@@ -399,8 +401,10 @@ func (c *BucketCache) WriteDirty(lf *LogFile, kf *KeyFile) (int64, error) {
 		}
 	}
 
-	if err := kf.Sync(); err != nil {
-		return work, fmt.Errorf("sync key file: %w", err)
+	if syncAfterWrite {
+		if err := kf.Sync(); err != nil {
+			return work, fmt.Errorf("sync key file: %w", err)
+		}
 	}
 
 	for idx := range c.dirty {

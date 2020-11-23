@@ -37,6 +37,9 @@ type Store struct {
 	elogger logr.Logger // error logger
 	dlogger logr.Logger // diagnostics logger
 	tlogger logr.Logger // trace logger
+
+	writeRecovery  bool // when true the store will write to the recovery log file
+	syncAfterWrite bool // when true the store will sync after every write. A call to Flush will always sync regardless of this setting.
 }
 
 func CreateStore(datPath, keyPath, logPath string, appnum, uid, salt uint64, blockSize int, loadFactor float64) error {
@@ -65,7 +68,7 @@ func CreateStore(datPath, keyPath, logPath string, appnum, uid, salt uint64, blo
 	return nil
 }
 
-func OpenStore(datPath, keyPath, logPath string, syncInterval time.Duration, elogger logr.Logger, dlogger logr.Logger, tlogger logr.Logger) (*Store, error) {
+func OpenStore(datPath, keyPath, logPath string, syncInterval time.Duration, elogger logr.Logger, dlogger logr.Logger, tlogger logr.Logger, writeRecovery bool, syncAfterWrite bool) (*Store, error) {
 	df, err := OpenDataFile(datPath)
 	if err != nil {
 		return nil, fmt.Errorf("open data file: %w", err)
@@ -134,6 +137,9 @@ func OpenStore(datPath, keyPath, logPath string, syncInterval time.Duration, elo
 		elogger: elogger,
 		dlogger: dlogger,
 		tlogger: tlogger,
+
+		writeRecovery:  writeRecovery,
+		syncAfterWrite: syncAfterWrite,
 	}
 
 	for idx := range s.bc.buckets {
@@ -164,7 +170,7 @@ func OpenStore(datPath, keyPath, logPath string, syncInterval time.Duration, elo
 				if s.tlogger.Enabled() {
 					s.tlogger.Info("Background flush")
 				}
-				s.Flush()
+				s.flush(s.syncAfterWrite)
 
 			}
 		}
@@ -188,7 +194,7 @@ func (s *Store) Close() error {
 	defer s.imu.Unlock()
 
 	if !s.p0.IsEmpty() {
-		if _, err := s.commit(); err != nil {
+		if _, err := s.commit(true); err != nil {
 			if s.elogger.Enabled() {
 				s.elogger.Error(err, "commit")
 			}
@@ -325,6 +331,10 @@ func (s *Store) insert(key string, data []byte) error {
 }
 
 func (s *Store) Flush() {
+	s.flush(true)
+}
+
+func (s *Store) flush(syncAfterWrite bool) {
 	if s.tlogger.Enabled() {
 		s.tlogger.Info("Store.Flush")
 	}
@@ -341,7 +351,7 @@ func (s *Store) Flush() {
 		return
 	}
 
-	work, err := s.commit()
+	work, err := s.commit(syncAfterWrite)
 	if err != nil {
 		if s.elogger.Enabled() {
 			s.elogger.Error(err, "flush")
@@ -362,15 +372,16 @@ func (s *Store) Flush() {
 }
 
 // Currently expects s.imu to be held
-func (s *Store) commit() (int64, error) {
+func (s *Store) commit(syncAfterWrite bool) (int64, error) {
 	if s.tlogger.Enabled() {
 		s.tlogger.Info("Store.commit")
 	}
 
-	if err := s.lf.Prepare(s.df, s.kf); err != nil {
-		return 0, fmt.Errorf("prepare log: %w", err)
+	if s.writeRecovery {
+		if err := s.lf.Prepare(s.df, s.kf); err != nil {
+			return 0, fmt.Errorf("prepare log: %w", err)
+		}
 	}
-
 	// Append data and spills to data file
 
 	work, err := s.p0.WriteRecords(s.df)
@@ -394,27 +405,30 @@ func (s *Store) commit() (int64, error) {
 	if err := s.df.Flush(); err != nil {
 		return 0, fmt.Errorf("flush data file: %w", err)
 	}
-	// work += int(s.kf.Header.BlockSize) * (2*mutatedBuckets.Count() + newBuckets.Count())
 
 	s.p0.Clear()
 
-	written, err := s.bc.WriteDirty(s.lf, s.kf)
+	written, err := s.bc.WriteDirty(s.lf, s.kf, s.writeRecovery, syncAfterWrite)
 	work += written
 	if err != nil {
 		return work, fmt.Errorf("write dirty buckets: %w", err)
 	}
 
-	// Finalize the commit
-	if err := s.df.Sync(); err != nil {
-		return 0, fmt.Errorf("sync data file: %w", err)
+	if syncAfterWrite {
+		// Finalize the commit
+		if err := s.df.Sync(); err != nil {
+			return 0, fmt.Errorf("sync data file: %w", err)
+		}
 	}
 
-	if err := s.lf.Truncate(); err != nil {
-		return 0, fmt.Errorf("trunc log file: %w", err)
-	}
+	if s.writeRecovery {
+		if err := s.lf.Truncate(); err != nil {
+			return 0, fmt.Errorf("trunc log file: %w", err)
+		}
 
-	if err := s.lf.Sync(); err != nil {
-		return 0, fmt.Errorf("sync log file: %w", err)
+		if err := s.lf.Sync(); err != nil {
+			return 0, fmt.Errorf("sync log file: %w", err)
+		}
 	}
 
 	return work, nil

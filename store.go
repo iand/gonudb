@@ -33,6 +33,8 @@ func OpenStore(datPath, keyPath, logPath string, options *StoreOptions) (*Store,
 		options.Logger,
 		options.Logger.V(LogLevelDiagnostics),
 		options.Logger.V(LogLevelTrace),
+		!options.DisableRecoveryLog,
+		!options.DisableSync,
 	)
 	if err != nil {
 		return nil, err
@@ -42,7 +44,9 @@ func OpenStore(datPath, keyPath, logPath string, options *StoreOptions) (*Store,
 
 type StoreOptions struct {
 	Logger                 logr.Logger
-	BackgroundSyncInterval time.Duration
+	BackgroundSyncInterval time.Duration // the interval between automatic commits of data to disk
+	DisableRecoveryLog     bool          // when true the store will avoid writing a reovery log when committing data
+	DisableSync            bool          // when true the store will avoid syncing files when committing data. Calling Flush or Close will always sync.
 }
 
 type Store struct {

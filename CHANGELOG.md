@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 These are changes that will probably be included in the next release.
 
 ### Added
+ * Add options to disable writing recovery log and syncing on every write
  
 ### Fixed
 
