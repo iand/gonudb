@@ -447,3 +447,40 @@ func (s *Store) FetchReader(key string) (io.Reader, error) {
 	}
 	return r, nil
 }
+
+func (s *Store) Exists(key string) (bool, error) {
+	if s.tlogger.Enabled() {
+		s.tlogger.Info("Store.Exists", "key", key)
+	}
+	if err := s.Err(); err != nil {
+		return false, err
+	}
+
+	if s.p0.Has(key) {
+		return true, nil
+	}
+
+	h := s.kf.HashString(key)
+	return s.bc.Exists(h, key, s.df)
+}
+
+func (s *Store) DataSize(key string) (int64, error) {
+	if s.tlogger.Enabled() {
+		s.tlogger.Info("Store.DataSize", "key", key)
+	}
+	if err := s.Err(); err != nil {
+		return 0, err
+	}
+
+	if data, exists := s.p0.Find(key); exists {
+		return int64(len(data)), nil
+	}
+
+	h := s.kf.HashString(key)
+	rh, err := s.bc.FetchHeader(h, key, s.df)
+	if err != nil {
+		return 0, fmt.Errorf("fetch header: %w", err)
+	}
+
+	return rh.DataSize, nil
+}

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -183,11 +184,14 @@ func (c *BucketCache) split(idxSplit, idxNew int, df Spiller) error {
 
 // Exists reports whether a record with the given hash and key exists in the data file
 func (c *BucketCache) Exists(hash uint64, key string, df *DataFile) (bool, error) {
-	r, err := c.Fetch(hash, key, df)
+	_, err := c.FetchHeader(hash, key, df)
+	if err == nil {
+		return true, nil
+	}
 	if err == ErrKeyNotFound {
 		return false, nil
 	}
-	return r != nil, err
+	return false, err
 }
 
 // Fetch returns a reader that can be used to read the data record associated with the key
@@ -217,6 +221,51 @@ func (c *BucketCache) Fetch(hash uint64, key string, df *DataFile) (io.Reader, e
 
 			// Found a matching record
 			return dr, nil
+		}
+
+		if b.spill == 0 {
+			break
+		}
+
+		spill := b.spill
+
+		blockBuf := make([]byte, c.bucketSize)
+		b = NewBucket(c.bucketSize, blockBuf)
+		if err := b.LoadFrom(spill, df); err != nil {
+			return nil, fmt.Errorf("read spill: %w", err)
+		}
+
+	}
+
+	return nil, ErrKeyNotFound
+}
+
+// FetchHeader returns a record header for the data record associated with the key
+func (c *BucketCache) FetchHeader(hash uint64, key string, df *DataFile) (*DataRecordHeader, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	idx := c.bucketIndex(hash)
+	b := c.buckets[idx]
+
+	bkey := []byte(key)
+	for {
+		for i := b.lowerBound(hash); i < b.count; i++ {
+			entry := b.entry(i)
+			if entry.Hash != hash {
+				break
+			}
+
+			rh, err := df.LoadRecordHeader(entry.Offset)
+			if err != nil {
+				return nil, fmt.Errorf("read data record header: %w", err)
+			}
+			if !bytes.Equal(bkey, rh.Key) {
+				continue
+			}
+
+			// Found a matching record
+			return rh, nil
 		}
 
 		if b.spill == 0 {

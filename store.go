@@ -15,6 +15,9 @@ func CreateStore(datPath, keyPath, logPath string, appnum, salt uint64, blockSiz
 }
 
 func OpenStore(datPath, keyPath, logPath string, options *StoreOptions) (*Store, error) {
+	if options == nil {
+		options = &StoreOptions{}
+	}
 	if options.Logger == nil {
 		options.Logger = logr.Discard()
 	}
@@ -79,6 +82,16 @@ func (s *Store) FetchReader(key string) (io.Reader, error) {
 	return s.store.FetchReader(key)
 }
 
+// Exists reports whether a data record is associated with a key.
+func (s *Store) Exists(key string) (bool, error) {
+	return s.store.Exists(key)
+}
+
+// DataSize returns the size of the data record associated with a key.
+func (s *Store) DataSize(key string) (int64, error) {
+	return s.store.DataSize(key)
+}
+
 // Err returns an error if the store is in an error state, nil otherwise
 func (s *Store) Err() error {
 	return s.store.Err()
@@ -130,7 +143,8 @@ func (s *Store) Rate() float64 {
 }
 
 // RecordScanner implements a sequential scan through a store's data file. Successive calls to the Next method will step through
-// the records in the file.
+// the records in the file. Note that the scanner does not include data buffered in memory. Call Flush to ensure all
+// written data is visible to the scanner.
 type RecordScanner struct {
 	scanner *internal.RecordScanner
 }

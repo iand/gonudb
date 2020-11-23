@@ -436,7 +436,7 @@ func (s *RecordScanner) RecordSize() int64 {
 		int64(len(s.key)) // key
 }
 
-// Size returns the key of the current record
+// Key returns the key of the current record
 func (s *RecordScanner) Key() string {
 	if s.key == nil {
 		return ""
