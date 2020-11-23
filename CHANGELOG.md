@@ -9,17 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 These are changes that will probably be included in the next release.
 
 ### Added
-
- * Support variable length keys
- * Compute number of records when store is opened
  
 ### Fixed
 
 ### Changed
-
- * Simplify method signatures of Fetch and FetchReader (breaking change)
  
 ### Removed
+
+## [v0.2.0] - 2020-11-23
+
+### Added
+
+ * Support variable length keys
+ * Compute number of records when store is opened
+
+### Changed
+
+ * Simplify method signatures of Fetch and FetchReader (breaking change)
 
 ## [v0.1.1] - 2020-11-18
 
