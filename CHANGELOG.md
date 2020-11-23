@@ -9,13 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 These are changes that will probably be included in the next release.
 
 ### Added
- * Add Exists and DataSize methods to Store
  
 ### Fixed
 
 ### Changed
  
 ### Removed
+
+## [v0.2.1] - 2020-11-23
+
+### Added
+ * Add Exists and DataSize methods to Store
 
 ## [v0.2.0] - 2020-11-23
 
