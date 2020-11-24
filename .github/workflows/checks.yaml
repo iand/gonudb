@@ -10,7 +10,6 @@ jobs:
       uses: grandcolline/golang-github-actions@v1.1.0
       with:
         run: lint
-        token: ${{ secrets.GITHUB_TOKEN }}
   vet:
     name: Vet
     runs-on: ubuntu-latest
