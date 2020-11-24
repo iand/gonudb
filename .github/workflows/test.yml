@@ -5,7 +5,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.14.x, 1.15.x]
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Go
@@ -14,16 +14,14 @@ jobs:
         go-version: ${{ matrix.go-version }}
     - name: Checkout code
       uses: actions/checkout@v2
-    - uses: actions/cache@v2
+    - name: Vet
+      uses: grandcolline/golang-github-actions@v1.1.0
       with:
-        path: |
-          ~/go/pkg/mod              # Module download cache
-          ~/.cache/go-build         # Build cache (Linux)
-          ~/Library/Caches/go-build # Build cache (Mac)
-          '%LocalAppData%\go-build' # Build cache (Windows)
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
+        run: vet
+    - name: StaticCheck
+      uses: grandcolline/golang-github-actions@v1.1.0
+      with:
+        run: staticcheck
     - name: Test
       run: go test ./...
     - name: Test with race detector
