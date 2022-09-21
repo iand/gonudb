@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	"golang.org/x/sys/unix"
 )
 
 func openFile(name string, flag int, perm os.FileMode, advice int) (*os.File, error) {
@@ -20,7 +19,7 @@ func openFile(name string, flag int, perm os.FileMode, advice int) (*os.File, er
 		return nil, fmt.Errorf("open: %w", err)
 	}
 
-	err = unix.Fadvise(int(f.Fd()), 0, 0, advice)
+	err = Fadvise(int(f.Fd()), 0, 0, advice)
 	if err != nil {
 		return nil, fmt.Errorf("fadvise: %w", err)
 	}
@@ -30,7 +29,7 @@ func openFile(name string, flag int, perm os.FileMode, advice int) (*os.File, er
 
 // openFileForScan creates a file for sequential reads
 func openFileForScan(name string) (*os.File, error) {
-	return openFile(name, os.O_RDONLY, 0o644, unix.FADV_SEQUENTIAL)
+	return openFile(name, os.O_RDONLY, 0o644, FADV_SEQUENTIAL)
 }
 
 func block_size(path string) int {
@@ -65,7 +64,7 @@ type DataFile struct {
 }
 
 func CreateDataFile(path string, appnum, uid uint64) error {
-	f, err := openFile(path, os.O_APPEND|os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644, unix.FADV_RANDOM)
+	f, err := openFile(path, os.O_APPEND|os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644, FADV_RANDOM)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
@@ -102,7 +101,7 @@ func OpenDataFile(path string) (*DataFile, error) {
 		return nil, fmt.Errorf("open: %w", err)
 	}
 
-	err = unix.Fadvise(int(f.Fd()), 0, 0, unix.FADV_RANDOM)
+	err = Fadvise(int(f.Fd()), 0, 0, FADV_RANDOM)
 	if err != nil {
 		return nil, fmt.Errorf("fadvise: %w", err)
 	}
@@ -473,7 +472,7 @@ type KeyFile struct {
 }
 
 func CreateKeyFile(path string, uid uint64, appnum uint64, salt uint64, blockSize int, loadFactor float64) error {
-	kf, err := openFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644, unix.FADV_RANDOM)
+	kf, err := openFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644, FADV_RANDOM)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
@@ -529,7 +528,7 @@ func OpenKeyFile(path string) (*KeyFile, error) {
 		return nil, fmt.Errorf("open: %w", err)
 	}
 
-	err = unix.Fadvise(int(f.Fd()), 0, 0, unix.FADV_RANDOM)
+	err = Fadvise(int(f.Fd()), 0, 0, FADV_RANDOM)
 	if err != nil {
 		return nil, fmt.Errorf("fadvise: %w", err)
 	}
@@ -756,7 +755,7 @@ func OpenLogFile(path string) (*LogFile, error) {
 		return nil, fmt.Errorf("open: %w", err)
 	}
 
-	err = unix.Fadvise(int(f.Fd()), 0, 0, unix.FADV_RANDOM)
+	err = Fadvise(int(f.Fd()), 0, 0, FADV_RANDOM)
 	if err != nil {
 		return nil, fmt.Errorf("fadvise: %w", err)
 	}
