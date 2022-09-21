@@ -13,10 +13,6 @@ const (
 	MaxUint64 = math.MaxUint64
 
 	MaxInt16 = math.MaxInt16
-
-	MaxBlockSize = MaxUint16 // maximum length of a keyfile block in bytes (must not be larger than MaxKeySize due to on-disk representation)
-	MaxKeySize   = MaxUint16 // maximum length of a data record's key in bytes
-	MaxDataSize  = MaxUint48 // maximum length of a data record's value in bytes
 )
 
 const (
