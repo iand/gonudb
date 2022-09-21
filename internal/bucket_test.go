@@ -3,7 +3,6 @@ package internal
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -235,7 +234,6 @@ func TestEntryDuplicateHashes(t *testing.T) {
 		hash  uint64
 		count int
 	}{
-
 		{
 			hash:  19999,
 			count: 3,
@@ -282,7 +280,7 @@ func TestBucketMaybeSpill(t *testing.T) {
 	}
 	blockSize := BucketHeaderSize + BucketEntrySize*len(entries)
 
-	tmpdir, err := ioutil.TempDir("", "gonudb.*")
+	tmpdir, err := os.MkdirTemp("", "gonudb.*")
 	if err != nil {
 		t.Fatalf("unexpected error creating temp directory: %v", err)
 	}
@@ -309,7 +307,7 @@ func TestBucketMaybeSpill(t *testing.T) {
 			t.Fatalf("unexpected error during write: %v", err)
 		}
 		df.Close()
-		written, err := ioutil.ReadFile(tmpfile)
+		written, err := os.ReadFile(tmpfile)
 		if err != nil {
 			t.Fatalf("unexpected error reading data file: %v", err)
 		}
@@ -342,7 +340,7 @@ func TestBucketMaybeSpill(t *testing.T) {
 			t.Fatalf("unexpected error during write: %v", err)
 		}
 		df.Close()
-		written, err := ioutil.ReadFile(tmpfile)
+		written, err := os.ReadFile(tmpfile)
 		if err != nil {
 			t.Fatalf("unexpected error reading data file: %v", err)
 		}
@@ -377,7 +375,7 @@ func TestBucketMaybeSpill(t *testing.T) {
 		}
 		df.Close()
 
-		written, err := ioutil.ReadFile(tmpfile)
+		written, err := os.ReadFile(tmpfile)
 		if err != nil {
 			t.Fatalf("unexpected error reading data file: %v", err)
 		}
@@ -427,7 +425,7 @@ func TestBucketMaybeSpill(t *testing.T) {
 			t.Fatalf("unexpected error during write: %v", err)
 		}
 		df.Close()
-		written, err := ioutil.ReadFile(tmpfile)
+		written, err := os.ReadFile(tmpfile)
 		if err != nil {
 			t.Fatalf("unexpected error reading data file: %v", err)
 		}

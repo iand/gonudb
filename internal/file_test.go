@@ -1,13 +1,12 @@
 package internal
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
 
 func TestCreateKeyFile(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "gonudb.*")
+	tmpdir, err := os.MkdirTemp("", "gonudb.*")
 	if err != nil {
 		t.Fatalf("unexpected error creating temp directory: %v", err)
 	}

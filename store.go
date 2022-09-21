@@ -2,7 +2,6 @@ package gonudb
 
 import (
 	"io"
-	"io/ioutil"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -70,7 +69,7 @@ func (s *Store) Fetch(key string) ([]byte, error) {
 		return nil, err
 	}
 
-	d, err := ioutil.ReadAll(r)
+	d, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
