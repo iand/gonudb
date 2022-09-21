@@ -2,8 +2,8 @@
 
 Gonudb is an append-only key/value datastore written in Go.
 
-
-[![Build Status](https://travis-ci.org/iand/gonudb.svg?branch=master)](https://travis-ci.org/iand/gonudb)
+[![Check Status](https://github.com/iand/gonudb/actions/workflows/check.yml/badge.svg)](https://github.com/iand/gonudb/actions/workflows/check.yml)
+[![Test Status](https://github.com/iand/gonudb/actions/workflows/test.yml/badge.svg)](https://github.com/iand/gonudb/actions/workflows/test.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/iand/gonudb)](https://goreportcard.com/report/github.com/iand/gonudb)
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/iand/gonudb)
 
