@@ -313,9 +313,10 @@ type DataRecord struct {
 
 // DataRecordHeader is prepended to each record written to the data file.
 // Layout is:
-//   6 bytes  DataSize
-//   2 bytes  KeySize
-//   n bytes  Key
+//
+//	6 bytes  DataSize
+//	2 bytes  KeySize
+//	n bytes  Key
 type DataRecordHeader struct {
 	DataSize int64
 	KeySize  uint16
