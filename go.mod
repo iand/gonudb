@@ -4,14 +4,14 @@ go 1.19
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8
-	github.com/go-logr/logr v0.3.0
-	github.com/iand/logfmtr v0.1.4
-	github.com/urfave/cli/v2 v2.3.0
-	golang.org/x/sys v0.0.0-20201027140754-0fcbb8f4928c
+	github.com/go-logr/logr v1.2.3
+	github.com/iand/logfmtr v0.2.1
+	github.com/urfave/cli/v2 v2.16.3
+	golang.org/x/sys v0.0.0-20220919091848-fb04ddd9f9c8
 )
 
 require (
-	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
-	github.com/russross/blackfriday/v2 v2.0.1 // indirect
-	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 )
