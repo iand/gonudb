@@ -15,10 +15,9 @@ func CreateStore(datPath, keyPath, logPath string, appnum, salt uint64, blockSiz
 
 func OpenStore(datPath, keyPath, logPath string, options *StoreOptions) (*Store, error) {
 	if options == nil {
-		options = &StoreOptions{}
-	}
-	if options.Logger == nil {
-		options.Logger = logr.Discard()
+		options = &StoreOptions{
+			Logger: logr.Discard(),
+		}
 	}
 	if options.BackgroundSyncInterval < time.Second {
 		options.BackgroundSyncInterval = time.Second

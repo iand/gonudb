@@ -13,9 +13,7 @@ func VerifyStore(datPath, keyPath string, logger logr.Logger) (*VerifyResult, er
 		return nil, fmt.Errorf("open data file: %w", err)
 	}
 	defer df.Close()
-	if logger != nil {
-		df.elogger = logger
-	}
+	df.elogger = logger
 	logger.Info("opened data file", "version", df.Header.Version, "uid", df.Header.UID, "appnum", df.Header.AppNum)
 
 	kf, err := OpenKeyFile(keyPath)
@@ -23,9 +21,8 @@ func VerifyStore(datPath, keyPath string, logger logr.Logger) (*VerifyResult, er
 		return nil, fmt.Errorf("open key file: %w", err)
 	}
 	defer kf.Close()
-	if logger != nil {
-		kf.elogger = logger
-	}
+	kf.elogger = logger
+
 	logger.Info("opened key file", "version", kf.Header.Version, "uid", kf.Header.UID, "appnum", kf.Header.AppNum, "buckets", kf.Header.Buckets, "block_size", kf.Header.BlockSize, "load_factor", kf.Header.LoadFactor)
 
 	if err := df.Header.VerifyMatchingKey(&kf.Header); err != nil {
