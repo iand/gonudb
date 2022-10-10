@@ -17,9 +17,8 @@ func OpenStore(datPath, keyPath, logPath string, options *StoreOptions) (*Store,
 	if options == nil {
 		options = &StoreOptions{}
 	}
-	if options.Logger == nil {
-		options.Logger = logr.Discard()
-	}
+	options.Logger = logr.Discard()
+
 	if options.BackgroundSyncInterval < time.Second {
 		options.BackgroundSyncInterval = time.Second
 	}
