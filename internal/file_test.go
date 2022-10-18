@@ -111,6 +111,10 @@ func TestTruncateLogFileWithoutError(t *testing.T) {
 		t.Errorf("AppendBucket: unexpected error: %v", err)
 	}
 
+	if err := lf.Flush(); err != nil {
+		t.Errorf("Flush: unexpected error: %v", err)
+	}
+
 	if err := lf.Truncate(); err != nil {
 		t.Fatalf("Truncate: unexpected error: %v", err)
 	}

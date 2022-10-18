@@ -750,23 +750,41 @@ type LogFile struct {
 
 // OpenLogFile opens a log file for appending, creating it if necessary.
 func OpenLogFile(path string) (*LogFile, error) {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644)
+	lf := &LogFile{
+		Path:    path,
+		elogger: logr.Discard(),
+	}
+
+	if err := lf.open(false); err != nil {
+		return nil, err
+	}
+
+	return lf, nil
+}
+
+func (l *LogFile) open(reopen bool) error {
+	flags := os.O_APPEND | os.O_RDWR | os.O_CREATE
+	if !reopen {
+		flags |= os.O_EXCL
+	}
+	f, err := os.OpenFile(l.Path, flags, 0o644)
 	if err != nil {
-		return nil, fmt.Errorf("open: %w", err)
+		return fmt.Errorf("open: %w", err)
 	}
 
 	err = Fadvise(int(f.Fd()), 0, 0, FADV_RANDOM)
 	if err != nil {
-		return nil, fmt.Errorf("fadvise: %w", err)
+		return fmt.Errorf("fadvise: %w", err)
 	}
 
-	return &LogFile{
-		Path: path,
-		file: f,
+	l.file = f
+	if l.writer == nil {
 		// Buffered writes to avoid write amplification
-		writer:  bufio.NewWriterSize(f, 32*block_size(path)),
-		elogger: logr.Discard(),
-	}, nil
+		l.writer = bufio.NewWriterSize(f, 32*block_size(l.Path))
+	} else {
+		l.writer.Reset(l.file)
+	}
+	return nil
 }
 
 func (l *LogFile) Sync() error {
@@ -788,9 +806,15 @@ func (l *LogFile) Close() error {
 }
 
 func (l *LogFile) Truncate() error {
-	l.writer.Reset(l.file)
 	// file must be closed before truncate on windows
-	return l.file.Truncate(0)
+	if err := l.Close(); err != nil {
+		return err
+	}
+
+	if err := os.Truncate(l.Path, 0); err != nil {
+		return err
+	}
+	return l.open(true)
 }
 
 func (l *LogFile) Prepare(df *DataFile, kf *KeyFile) error {
