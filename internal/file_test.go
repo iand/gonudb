@@ -68,3 +68,50 @@ func TestCreateKeyFile(t *testing.T) {
 		}
 	}
 }
+
+func TestTruncateLogFileWithoutError(t *testing.T) {
+	tmpdir, err := os.MkdirTemp("", "gonudb.*")
+	if err != nil {
+		t.Fatalf("unexpected error creating temp directory: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	const blockSize = 256
+
+	filename := tmpdir + "log"
+	lf, err := OpenLogFile(filename)
+	if err != nil {
+		t.Errorf("OpenLogFile: unexpected error: %v", err)
+	}
+
+	blob := make([]byte, BucketHeaderSize+BucketEntrySize*2)
+	b := &Bucket{
+		blockSize: len(blob),
+		blob:      blob,
+	}
+
+	entries := []Entry{
+		{
+			Offset: 15555,
+			Size:   14444,
+			Hash:   19999,
+		},
+		{
+			Offset: 25555,
+			Size:   24444,
+			Hash:   29999,
+		},
+	}
+
+	for i := range entries {
+		b.insert(entries[i].Offset, entries[i].Size, entries[i].Hash)
+	}
+
+	if _, err := lf.AppendBucket(0, b); err != nil {
+		t.Errorf("AppendBucket: unexpected error: %v", err)
+	}
+
+	if err := lf.Truncate(); err != nil {
+		t.Fatalf("Truncate: unexpected error: %v", err)
+	}
+}

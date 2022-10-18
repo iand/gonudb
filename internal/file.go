@@ -789,6 +789,7 @@ func (l *LogFile) Close() error {
 
 func (l *LogFile) Truncate() error {
 	l.writer.Reset(l.file)
+	// file must be closed before truncate on windows
 	return l.file.Truncate(0)
 }
 
