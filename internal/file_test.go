@@ -76,8 +76,6 @@ func TestTruncateLogFileWithoutError(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	const blockSize = 256
-
 	filename := tmpdir + "log"
 	lf, err := OpenLogFile(filename)
 	if err != nil {
