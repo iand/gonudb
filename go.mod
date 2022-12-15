@@ -6,8 +6,8 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/go-logr/logr v1.2.3
 	github.com/iand/logfmtr v0.2.1
-	github.com/urfave/cli/v2 v2.23.5
-	golang.org/x/sys v0.2.0
+	github.com/urfave/cli/v2 v2.23.7
+	golang.org/x/sys v0.3.0
 )
 
 require (
