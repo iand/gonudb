@@ -5,9 +5,9 @@ go 1.19
 require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/go-logr/logr v1.2.4
-	github.com/iand/logfmtr v0.2.1
-	github.com/urfave/cli/v2 v2.25.4
-	golang.org/x/sys v0.8.0
+	github.com/iand/logfmtr v0.2.2
+	github.com/urfave/cli/v2 v2.25.7
+	golang.org/x/sys v0.9.0
 )
 
 require (
