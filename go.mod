@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/iand/logfmtr v0.2.2
 	github.com/urfave/cli/v2 v2.25.7
-	golang.org/x/sys v0.9.0
+	golang.org/x/sys v0.12.0
 )
 
 require (
